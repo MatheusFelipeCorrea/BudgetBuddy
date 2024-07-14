@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Esqueci minha senha</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container forgot-password-container text-center">
+    <img src="assets/img/BudgetBuddy2.png" alt="logo" id="budgetLogo" class="img-fluid mx-auto d-block" />
+    <h1>Esqueceu a sua senha?</h1>
+    <h2>Insira seu email para que possa redefinir a senha!</h2>
+    <form id="resetForm" class="w-100">
+      <input type="email" id="emailInput" class="form-control mx-auto" placeholder="Digite seu email cadastrado" required />
+      <button type="submit" class="btn btn-success mt-3">Enviar</button>
+    </form>
+    <p>Não possui cadastro? <a href="/codigo/cadastroUsuario/cadastro.html">Crie um agora!</a></p>
+  </div>
+
+  <script>
+    // Função para obter dados do localStorage
+    function getUserByEmail(email) {
+      let users = JSON.parse(localStorage.getItem('users')) || [];
+      return users.find(user => user.email === email);
+    }
+
+    document.getElementById('resetForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      var email = document.getElementById('emailInput').value;
+      var user = getUserByEmail(email);
+      
+      if (user) {
+        localStorage.setItem('resetEmail', email); // Salva o email no localStorage para uso posterior
+        alert('Email encontrado! Redirecionando para redefinição de senha.');
+        window.location.href = 'confirmacao.html'; // Caminho para a página de redefinição de senha
+      } else {
+        alert('Email não encontrado. Tente novamente.');
+      }
+    });
+  </script>
+  
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
