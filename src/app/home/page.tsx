@@ -2,7 +2,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import './home.css';
+import '../Home.css';
 
 export default function Home() {
   // ========== Lógica dos Depoimentos ==========

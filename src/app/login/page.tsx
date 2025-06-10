@@ -78,7 +78,7 @@ export default function Login() {
     setCurrentSlide(index);
   };
 
-  const renderCarousel = (textGroupRef: React.RefObject<HTMLDivElement | null>) => (
+  const renderCarousel = (textGroupRef: React.RefObject<HTMLDivElement>) => (
     <div className="carousel">
       <div className="images-wrapper">
         {slides.map((slide, index) => (

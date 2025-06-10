@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model usuario {
+  id_usuario   Int      @id @default(autoincrement())
+  email        String   @unique
+  senha        String
+  nome         String
+  receita      receita[]
+  despesas     despesas[]
+  meta         meta[]
+  conta        conta[]
+  saldo        saldo[]
+}
+
+model receita {
+  id_receita    Int      @id @default(autoincrement())
+  nome_receita  String
+  valor         Float
+  data          DateTime
+  id_usuario    Int
+  usuario       usuario @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+model despesas {
+  id_despesa      Int      @id @default(autoincrement())
+  nome_despesa    String
+  valor           Float
+  data            DateTime
+  id_categoria    Int
+  id_usuario      Int
+  categoria       categoria @relation(fields: [id_categoria], references: [id_categoria])
+  usuario         usuario   @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+model categoria {
+  id_categoria    Int      @id @default(autoincrement())
+  nome_categoria  String
+  despesas        despesas[]
+}
+
+model meta {
+  id_meta      Int      @id @default(autoincrement())
+  nome_meta    String
+  valor_alvo   Float
+  valor_atual  Float
+  id_usuario   Int
+  usuario      usuario @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+model conta {
+  id_conta        Int      @id @default(autoincrement())
+  nome            String
+  valor           Float
+  data_vencimento DateTime
+  paga            Boolean
+  id_usuario      Int
+  usuario         usuario @relation(fields: [id_usuario], references: [id_usuario])
+}
+
+model saldo {
+  id_saldo      Int      @id @default(autoincrement())
+  valor_total   Float
+  id_usuario    Int
+  usuario       usuario @relation(fields: [id_usuario], references: [id_usuario])
+} 
