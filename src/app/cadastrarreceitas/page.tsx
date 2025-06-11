@@ -2,10 +2,12 @@
 import Image from 'next/image';
 import { useState, useMemo, useEffect } from 'react';
 import { Wallet2, Pencil, Trash2, FolderOpen, Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+// IMPORTANTE: Importe 'supabase' APENAS DE UM LUGAR
+import { supabase } from '../../lib/supabaseClient'; // <--- ESTA É A ÚNICA LINHA NECESSÁRIA PARA OBTER O CLIENTE SUPABASE
+import { useRouter } from 'next/navigation';
+import { User } from '@supabase/supabase-js';
 
-// --- INTERFACES E CONFIGURAÇÃO DO SUPABASE ---
-
+// --- INTERFACES DE DADOS ---
 interface Recipe {
   id: number;
   name: string;
@@ -19,14 +21,8 @@ interface FormData {
   value: string;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Variáveis de ambiente do Supabase não configuradas.');
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// REMOVIDO: Toda a seção de configuração do Supabase local (supabaseUrl, supabaseAnonKey, createClient)
+// Ela está agora no '../../lib/supabaseClient.ts'
 
 // --- COMPONENTE PRINCIPAL ---
 export default function RecipeManager() {
@@ -36,15 +32,69 @@ export default function RecipeManager() {
   const [formData, setFormData] = useState<FormData>({ name: '', date: '', value: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<User | null>(null); // Estado para armazenar o usuário logado
 
+  const router = useRouter();
   const isEditing = editingId !== null;
 
+  // Função para buscar e atualizar o saldo do usuário
+  const updateBalance = async (userId: string, amount: number, operation: 'add' | 'subtract') => {
+    // console.log para depuração (descomente se precisar ver o fluxo no console)
+    // console.log('updateBalance: userId:', userId, 'amount:', amount, 'operation:', operation);
+    if (!userId) {
+        console.error('updateBalance: userId é nulo ou indefinido. Abortando.');
+        return;
+    }
+
+    try {
+      const { data: currentBalanceData, error: fetchError } = await supabase
+        .from('saldo')
+        .select('valor_total')
+        .eq('id_usuario', userId)
+        .single();
+
+      if (fetchError && fetchError.code === 'PGRST116') {
+        console.warn('updateBalance: Saldo não encontrado para o usuário. Iniciando com 0.');
+      } else if (fetchError) {
+        throw fetchError;
+      }
+
+      let newTotal = currentBalanceData ? currentBalanceData.valor_total : 0;
+      // console.log('updateBalance: Saldo atual antes:', newTotal);
+
+      if (operation === 'add') {
+        newTotal += amount;
+      } else {
+        newTotal -= amount;
+      }
+
+      // console.log('updateBalance: Saldo novo calculado:', newTotal);
+
+      const { error: upsertError } = await supabase
+        .from('saldo')
+        .upsert(
+          { id_usuario: userId, valor_total: newTotal },
+          { onConflict: 'id_usuario' }
+        );
+
+      if (upsertError) {
+        throw upsertError;
+      }
+      // console.log('updateBalance: Saldo atualizado com SUCESSO para:', newTotal);
+    } catch (error: any) {
+      console.error('Erro ao atualizar saldo:', error.message);
+      alert(`Erro ao atualizar saldo: ${error.message}`);
+    }
+  };
+
+
   // --- FUNÇÃO PARA BUSCAR DADOS ---
-  const fetchRecipes = async () => {
+  const fetchRecipes = async (userId: string) => {
     setIsLoading(true);
     const { data, error } = await supabase
       .from('receita')
-      .select('*');
+      .select('*')
+      .eq('id_usuario', userId);
 
     if (error) {
       console.error('Erro ao buscar receitas:', error);
@@ -60,17 +110,32 @@ export default function RecipeManager() {
     setIsLoading(false);
   };
 
-  // --- EFEITO PARA CARREGAMENTO INICIAL ---
+  // --- EFEITO PARA CARREGAMENTO INICIAL E AUTENTICAÇÃO ---
   useEffect(() => {
-    fetchRecipes();
-  }, []);
+    const checkUserAndFetchData = async () => {
+      setIsLoading(true);
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error('Nenhum usuário logado ou erro:', userError?.message);
+        router.push('/login'); // Redireciona para a página de login
+        return;
+      }
+
+      setUser(user);
+      await fetchRecipes(user.id);
+    };
+
+    // Chamada direta da função que verifica o usuário e busca dados
+    checkUserAndFetchData();
+  }, [router]); // Adicione router como dependência
 
   // --- FUNÇÕES AUXILIARES ---
   const formatCurrency = (value: number): string => {
     if (isNaN(value) || value === null) return '';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
-  
+
   const formatDate = (dateString: string): string => {
     if (!dateString) return '';
     const [year, month, day] = dateString.split('-');
@@ -97,26 +162,43 @@ export default function RecipeManager() {
     setIsSubmitting(true);
     const { name, date, value } = formData;
 
+    // console.log('handleSubmit: user object:', user); // Log para depuração
+
+    if (!user) { // Garante que há um usuário logado
+      console.error('handleSubmit: Erro: Usuário não autenticado no handleSubmit.');
+      router.push('/login'); // Redireciona
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!name.trim() || !date || isNaN(parseFloat(value)) || parseFloat(value) <= 0) {
       console.error('Validação falhou: Por favor, preencha todos os campos corretamente.');
       setIsSubmitting(false);
       return;
     }
-    
+
+    const numericValue = parseFloat(value);
     const recipeData = {
       nome_receita: name.trim(),
       data: date,
-      valor: parseFloat(value),
+      valor: numericValue,
+      id_usuario: user.id, // Adiciona o id_usuario aqui!
     };
 
     let error;
+    let oldRecipeValue = 0; // Para caso de edição
+
+    // console.log('handleSubmit: isEditing:', isEditing);
     if (isEditing) {
+      oldRecipeValue = recipes.find(r => r.id === editingId)?.value || 0;
       const { error: updateError } = await supabase
         .from('receita')
         .update(recipeData)
-        .eq('id_receita', editingId);
+        .eq('id_receita', editingId)
+        .eq('id_usuario', user.id); // Garante que só o próprio usuário pode editar
       error = updateError;
     } else {
+      // console.log('handleSubmit: Tentando inserir nova receita...');
       const { error: insertError } = await supabase
         .from('receita')
         .insert([recipeData]);
@@ -124,10 +206,22 @@ export default function RecipeManager() {
     }
 
     if (error) {
-      console.error('Erro ao salvar receita:', error);
+      console.error('handleSubmit: Erro ao salvar receita no DB:', error);
+      alert(`Erro ao salvar receita: ${error.message}`); // Exibe mensagem de erro mais detalhada
     } else {
+      // console.log('handleSubmit: Receita salva com sucesso. Chamando updateBalance...');
+      // ATUALIZAÇÃO DO SALDO AQUI
+      if (isEditing) {
+        const diff = numericValue - oldRecipeValue;
+        if (diff !== 0) {
+            await updateBalance(user.id, Math.abs(diff), diff > 0 ? 'add' : 'subtract');
+        }
+      } else {
+        await updateBalance(user.id, numericValue, 'add');
+      }
+
       resetForm();
-      await fetchRecipes();
+      await fetchRecipes(user.id); // Recarrega as receitas do usuário atual
     }
     setIsSubmitting(false);
   };
@@ -143,14 +237,30 @@ export default function RecipeManager() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!user) { // Garante que há um usuário logado
+      console.error('Erro: Usuário não autenticado.');
+      router.push('/login'); // Redireciona
+      return;
+    }
+
+    const recipeToDelete = recipes.find(r => r.id === id);
+    if (!recipeToDelete) {
+        console.error('Receita não encontrada para exclusão.');
+        return;
+    }
+
     const { error } = await supabase
       .from('receita')
       .delete()
-      .eq('id_receita', id);
+      .eq('id_receita', id)
+      .eq('id_usuario', user.id); // Garante que só o próprio usuário pode deletar
 
     if (error) {
       console.error('Erro ao excluir receita:', error);
-      } else {
+      alert(`Erro ao excluir receita: ${error.message}`);
+    } else {
+      await updateBalance(user.id, recipeToDelete.value, 'subtract');
+      
       setRecipes(recipes.filter((recipe) => recipe.id !== id));
       if (id === editingId) {
         resetForm();
@@ -164,8 +274,8 @@ export default function RecipeManager() {
   };
 
   const getButtonStyle = () => {
-    return isEditing 
-      ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20' 
+    return isEditing
+      ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20'
       : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/20';
   };
 
@@ -179,7 +289,7 @@ export default function RecipeManager() {
           </td>
         </tr>
       );
-      }
+    }
 
     if (recipes.length === 0) {
       return (
@@ -213,7 +323,7 @@ export default function RecipeManager() {
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center mb-8">
           <div className="inline-block bg-yellow-400 p-3 rounded-full mb-4">
-          <img src="/img/BudgetBuddy Icon 2sgv.svg" alt="Wallet" className="w-15 h-15" />
+            <Image src="/img/BudgetBuddy Icon 2sgv.svg" alt="Wallet" width={60} height={60} />
           </div>
           <h1 className="text-2xl font-bold text-gray-200">BUDGET BUDDY</h1>
           <p className="text-gray-400">Cadastrar nova Receita</p>
@@ -228,7 +338,7 @@ export default function RecipeManager() {
             <div>
               <label htmlFor="date" className="block text-sm font-medium text-gray-400 mb-1">Data</label>
               <input type="date" id="date" value={formData.date} onChange={handleInputChange} className="w-full bg-[#0f172a] border border-teal-500/50 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all" style={{ colorScheme: 'dark' }}/>
-          </div>
+            </div>
             <div>
               <label htmlFor="value" className="block text-sm font-medium text-gray-400 mb-1">Valor Monetário</label>
               <input type="number" id="value" value={formData.value} onChange={handleInputChange} placeholder="R$ 150,00" step="0.01" className="w-full bg-[#0f172a] border border-teal-500/50 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all appearance-none"/>
@@ -238,26 +348,26 @@ export default function RecipeManager() {
                 {isSubmitting && <Loader2 className="animate-spin mr-2 h-5 w-5" />}
                 {getButtonText()}
               </button>
-        </div>
-      </form>
+            </div>
+          </form>
         </div>
 
         <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-lg">
           <h2 className="text-xl font-bold mb-4 text-gray-700">Receitas Cadastradas</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-          <thead>
+              <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="p-3 text-sm font-semibold text-gray-500">NOME DA RECEITA</th>
                   <th className="p-3 text-sm font-semibold text-gray-500">VALOR</th>
                   <th className="p-3 text-sm font-semibold text-gray-500">DATA</th>
                   <th className="p-3 text-sm font-semibold text-gray-500 text-center">AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody>
+                </tr>
+              </thead>
+              <tbody>
                 {renderTableContent()}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
