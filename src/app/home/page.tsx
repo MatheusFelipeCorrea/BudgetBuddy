@@ -101,15 +101,14 @@ export default function Home() {
               <img src="/img/Home/mail.svg" alt="Email" className="icon" width={25} height={25} />
             </a>
             <a 
-              href="https://github.com/ICEI-PUC-Minas-PMGES-TI/pmg-es-2024-2-ti2-3687100-atenasbuffet/tree/main" 
+              href="https://github.com/MatheusFelipeCorrea/BudgetBuddy" 
               target="_blank"
               rel="noopener noreferrer"
               className="icon-button me-3"
             >
               <img src="/img/Home/github (2).svg" alt="Github" className="icon" width={25} height={25} />
             </a>
-            <a href="#" className="icon-button me-3">
-              <img src="/img/Home/Linkedin.svg" alt="Linkedin" className="icon" width={25} height={25} />
+            <a href="#" className="icon-button me-3"><img src="/img/Home/linkedin.svg" alt="Linkedin" className="icon" width={25} height={25} />
             </a>
           </div>
 
@@ -262,7 +261,7 @@ export default function Home() {
                 <img src="/img/Home/mail.svg" alt="Email" className="icon" width={25} height={25} />
               </a>
               <a 
-                href="https://github.com/ICEI-PUC-Minas-PMGES-TI/pmg-es-2024-2-ti2-3687100-atenasbuffet/tree/main" 
+                href="https://github.com/MatheusFelipeCorrea/BudgetBuddy" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="icon-button me-3"
@@ -270,7 +269,7 @@ export default function Home() {
                 <img src="/img/Home/github (2).svg" alt="Github" className="icon" width={25} height={25} />
               </a>
               <a href="#" className="icon-button me-3">
-                <img src="/img/Home/Linkedin.svg" alt="Linkedin" className="icon" width={25} height={25} />
+                <img src="/img/Home/linkedin.svg" alt="Linkedin" className="icon" width={25} height={25} />
               </a>
             </div>
           </div>

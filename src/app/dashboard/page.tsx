@@ -1,22 +1,24 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+// CORREÇÃO: A importação do 'recharts' é mantida como está, pois é a prática padrão em projetos Next.js.
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+// CORREÇÃO: A importação do Supabase é mantida como está.
 import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation'; // Adicione esta importação
+import { useRouter } from 'next/navigation';
 
-// --- INTERFACES E CONFIGURAÇÃO DO SUPABASE ---
-
+// --- CONFIGURAÇÃO DO SUPABASE ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('ALERTA: Variáveis de ambiente do Supabase não configuradas. A aplicação não funcionará corretamente.');
+let supabase: any;
+if (supabaseUrl && supabaseAnonKey) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+    console.error('ALERTA: Variáveis de ambiente do Supabase não configuradas.');
 }
-const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
-
 
 // --- ÍCONES (SVG Components) ---
 const IconHome = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
@@ -26,54 +28,98 @@ const IconTarget = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 const IconCalendar = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const IconChevronLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>;
 const IconChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+const IconMenu = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
 const IconArrowUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>;
 const IconArrowDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>;
+const IconLoader = () => <svg className="animate-spin h-10 w-10 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>;
 
+// --- COMPONENTE DO MENU LATERAL (SIDEBAR) ---
+function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (isOpen: boolean) => void }) {
+    const NavLink = ({ href, icon, children }: { href: string, icon: React.ReactNode, children: React.ReactNode }) => (
+        <li>
+            <a href={href} className={`flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-white/10 ${typeof window !== 'undefined' && window.location.pathname.endsWith(href) ? 'bg-teal-500/20 text-teal-300 font-semibold' : ''}`}>
+                {icon}
+                <span className={`${!isOpen && 'lg:hidden'}`}>{children}</span>
+            </a>
+        </li>
+    );
+
+    return (
+        <>
+            {/* Overlay para fechar o menu em telas pequenas */}
+            <div className={`fixed inset-0 bg-black/60 z-30 lg:hidden transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsOpen(false)}></div>
+            
+            {/* Conteúdo do Sidebar */}
+            <aside className={`fixed top-0 left-0 h-full bg-[#1e293b] p-4 flex flex-col z-40 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'} lg:relative lg:w-auto ${!isOpen && 'lg:w-20'}`}>
+                <div className={`flex items-center gap-3 mb-10 ${isOpen ? 'justify-between' : 'justify-center'}`}>
+                    <div className={`flex items-center gap-3 ${!isOpen && 'lg:hidden'}`}>
+                        <div className="bg-yellow-400 p-2 rounded-full">
+                            <img src="/img/BudgetBuddy Icon 2sgv.svg" alt="Wallet" className="w-8 h-8" />
+                        </div>
+                        <h1 className="text-xl font-bold">BudgetBuddy</h1>
+                    </div>
+                    <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full hover:bg-white/10 hidden lg:block">
+                        {isOpen ? <IconChevronLeft /> : <IconChevronRight />}
+                    </button>
+                </div>
+                <nav>
+                    <ul className="space-y-2">
+                        <NavLink href="/dashboard" icon={<IconHome />}>Dashboard</NavLink>
+                        <NavLink href="/cadastrarreceitas" icon={<IconTrendingUp />}>Receitas</NavLink>
+                        <NavLink href="/cadastrardespesa" icon={<IconTrendingDown />}>Despesas</NavLink>
+                        <NavLink href="/cadastrarmeta" icon={<IconTarget />}>Metas</NavLink>
+                        <NavLink href="/cadastrarvencimentos" icon={<IconCalendar />}>Vencimentos</NavLink>
+                    </ul>
+                </nav>
+            </aside>
+        </>
+    );
+}
 
 // --- COMPONENTE PRINCIPAL DO DASHBOARD ---
 export default function DashboardPage() {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [balanceVisible, setBalanceVisible] = useState(true);
     const [tooltip, setTooltip] = useState<{ visible: boolean; content: string; x: number; y: number }>({ visible: false, content: '', x: 0, y: 0 });
     const [isLoading, setIsLoading] = useState(true);
-
-    // Estados para armazenar os dados do Supabase
-    const [userName, setUserName] = useState('Usuário'); // Estado para o nome do usuário
+    const [userName, setUserName] = useState('Usuário');
     const [transactions, setTransactions] = useState<any[]>([]);
     const [dueDates, setDueDates] = useState<any[]>([]);
     const [goals, setGoals] = useState<any[]>([]);
 
-    const router = useRouter(); // Inicialize o useRouter
+    const router = useRouter();
 
     useEffect(() => {
         const fetchAllData = async () => {
             setIsLoading(true);
+            
+            if (!supabase) {
+                console.error("Cliente Supabase não inicializado.");
+                setIsLoading(false);
+                router.push('/login');
+                return;
+            }
 
-            // 1. Obter a sessão do usuário
             const { data: { user }, error: userSessionError } = await supabase.auth.getUser();
 
             if (userSessionError || !user) {
                 console.error('Nenhum usuário logado ou erro ao buscar sessão:', userSessionError?.message);
-                router.push('/login'); // Redireciona para a página de login
-                return; // Impede a execução do restante do useEffect
+                router.push('/login');
+                return;
             }
 
-            // 2. Se houver um usuário, buscar o nome dele na tabela 'usuario'
-            // Assumimos que o 'id_usuario' na sua tabela 'usuario' é o UUID do usuário logado.
             const { data: userData, error: userDataError } = await supabase
                 .from('usuario')
                 .select('nome')
-                .eq('id_usuario', user.id) // Usando 'id_usuario' conforme seu DER
+                .eq('id_usuario', user.id)
                 .single();
 
             if (userDataError) {
-                console.error('Erro ao buscar nome do usuário na tabela usuario:', userDataError.message);
-                setUserName('Usuário'); // Fallback para "Usuário" em caso de erro
+                console.error('Erro ao buscar nome do usuário:', userDataError.message);
             } else if (userData) {
                 setUserName(userData.nome || 'Usuário');
             }
 
-            // 3. Buscar os demais dados do Supabase para o usuário logado
-            // Filtre por id_usuario para garantir que você só pegue os dados do usuário atual
             const [recipesResponse, expensesResponse, dueDatesResponse, goalsResponse] = await Promise.all([
                 supabase.from('receita').select('*').eq('id_usuario', user.id),
                 supabase.from('despesas').select('*, categoria(nome_categoria)').eq('id_usuario', user.id),
@@ -81,32 +127,99 @@ export default function DashboardPage() {
                 supabase.from('meta').select('*').eq('id_usuario', user.id)
             ]);
 
-            // Processa transações (receitas e despesas)
-            const combinedTransactions = [
-                ...(recipesResponse.data || []).map(r => ({ ...r, type: 'receita', name: r.nome_receita, category: 'Receita', value: r.valor, date: r.data || new Date().toISOString() })),
-                ...(expensesResponse.data || []).map(d => ({ ...d, type: 'despesa', name: d.nome_despesa, category: d.categoria?.nome_categoria || 'Sem Categoria', value: d.valor, date: d.data || new Date().toISOString() }))
+            interface Receita {
+                id_receita: number;
+                nome_receita: string;
+                valor: number;
+                data: string;
+                [key: string]: any;
+            }
+
+            interface Categoria {
+                nome_categoria: string;
+                [key: string]: any;
+            }
+
+            interface Despesa {
+                id_despesa: number;
+                nome_despesa: string;
+                valor: number;
+                data: string;
+                categoria?: Categoria;
+                [key: string]: any;
+            }
+
+            interface Transaction {
+                type: 'receita' | 'despesa';
+                name: string;
+                category: string;
+                value: number;
+                date: string;
+                [key: string]: any;
+            }
+
+            const combinedTransactions: Transaction[] = [
+                ...(recipesResponse.data as Receita[] || []).map((r: Receita): Transaction => ({
+                    ...r,
+                    type: 'receita',
+                    name: r.nome_receita,
+                    category: 'Receita',
+                    value: r.valor,
+                    date: r.data || new Date().toISOString()
+                })),
+                ...(expensesResponse.data as Despesa[] || []).map((d: Despesa): Transaction => ({
+                    ...d,
+                    type: 'despesa',
+                    name: d.nome_despesa,
+                    category: d.categoria?.nome_categoria || 'Sem Categoria',
+                    value: d.valor,
+                    date: d.data || new Date().toISOString()
+                }))
             ];
             setTransactions(combinedTransactions);
 
-            // Processa vencimentos
             if (dueDatesResponse.data) {
-                setDueDates(dueDatesResponse.data.map(d => ({ ...d, date: d.data_vencimento, isPaid: d.pago })));
+                setDueDates(dueDatesResponse.data.map((d: any) => ({ ...d, date: d.data_vencimento, isPaid: d.pago })));
             }
 
-            // Processa metas
             if (goalsResponse.data) {
-                setGoals(goalsResponse.data.map(g => ({ ...g, name: g.nome_meta, targetValue: g.valor_alvo, currentValue: g.valor_atual, isCompleted: g.is_completed })));
+                interface GoalFromDB {
+                    id_meta: number;
+                    nome_meta: string;
+                    valor_alvo: number;
+                    valor_atual: number;
+                    is_completed: boolean;
+                    [key: string]: any;
+                }
+
+                interface Goal {
+                    id_meta: number;
+                    name: string;
+                    targetValue: number;
+                    currentValue: number;
+                    isCompleted: boolean;
+                    [key: string]: any;
+                }
+
+                setGoals((goalsResponse.data as GoalFromDB[]).map((g: GoalFromDB): Goal => ({
+                    ...g,
+                    name: g.nome_meta,
+                    targetValue: g.valor_alvo,
+                    currentValue: g.valor_atual,
+                    isCompleted: g.is_completed
+                })));
             }
 
             setIsLoading(false);
         };
-
-        if (supabaseUrl && supabaseAnonKey) {
-            fetchAllData();
-        } else {
-            setIsLoading(false);
+        
+        // Ajusta o estado inicial do sidebar com base no tamanho da tela
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            setIsSidebarOpen(false);
         }
-    }, [router]); // Adicione router como dependência para que o useEffect reaja a mudanças de rota
+
+        fetchAllData();
+    }, [router]);
 
     const { balance } = useMemo(() => {
         const totalIncome = transactions.filter(t => t.type === 'receita').reduce((sum, t) => sum + t.value, 0);
@@ -122,10 +235,7 @@ export default function DashboardPage() {
     if (isLoading) {
         return (
             <div className="bg-[#0f172a] min-h-screen flex items-center justify-center text-white">
-                <svg className="animate-spin h-10 w-10 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <IconLoader />
             </div>
         );
     }
@@ -138,39 +248,31 @@ export default function DashboardPage() {
                 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #475569; }
             `}</style>
+            
             {tooltip.visible && (
                 <div className="fixed z-50 p-2 text-sm bg-gray-900 text-white rounded-md shadow-lg whitespace-pre-wrap" style={{ top: tooltip.y + 15, left: tooltip.x + 15 }}>
                     {tooltip.content}
                 </div>
             )}
-            <aside className="w-64 bg-[#1e293b] p-6 hidden lg:flex flex-col">
-                <div className="flex items-center gap-3 mb-10">
-                    <div className="bg-yellow-400 p-2 rounded-full">
-                    <img src="/img/BudgetBuddy Icon 2sgv.svg" alt="Wallet" className="w-15 h-15" />
-                    </div>
-                    <h1 className="text-xl font-bold">BudgetBuddy</h1>
-                </div>
-                <nav>
-                    <ul className="space-y-2">
-                        <li><a href="/dashboard" className="flex items-center gap-3 p-3 bg-teal-500/20 rounded-lg text-teal-300 font-semibold"><IconHome /> Dashboard</a></li>
-                        <li><a href="/cadastrarreceitas" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"><IconTrendingUp /> Cadastro de Receitas</a></li>
-                        <li><a href="/cadastrardespesa" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"><IconTrendingDown /> Cadastro de Despesas</a></li>
-                        <li><a href="/cadastrarmeta" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"><IconTarget /> Cadastro de Metas</a></li>
-                        <li><a href="/cadastrarvencimentos" className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition-colors"><IconCalendar /> Cadastro de Vencimentos</a></li>
-                    </ul>
-                </nav>
-            </aside>
+            
+            <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-            <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start mb-8 gap-4">
+            <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+                 <header className="flex items-center justify-between gap-4 mb-8">
+                    {/* Botão de menu para telas pequenas */}
+                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-full hover:bg-white/10 lg:hidden">
+                        <IconMenu />
+                    </button>
+                    
                     <div className="flex items-center gap-4">
-                           <img src="/img/maneki-neko 1.svg" alt="Mascote" className=" w-15 h-15 hidden sm:block" />
-                           <div>
-                               <h2 className="text-3xl font-bold">Olá, {userName}! 👋</h2> {/* Aqui o nome do usuário será exibido */}
-                               <p className="text-gray-400">Vamos economizar de um jeito inteligente hoje?</p>
-                           </div>
+                        <img src="/img/maneki-neko 1.svg" alt="Mascote" className="w-15 h-15 hidden sm:block" />
+                        <div>
+                            <h2 className="text-3xl font-bold">Olá, {userName}! 👋</h2>
+                            <p className="text-gray-400">Vamos economizar de um jeito inteligente hoje?</p>
+                        </div>
                     </div>
-                    <div className="bg-[#1e293b] p-4 rounded-xl flex items-center gap-4 self-start sm:self-center w-full sm:w-auto">
+                    
+                    <div className="bg-[#1e293b] p-4 rounded-xl flex items-center gap-4 self-start sm:self-center w-full sm:w-auto max-w-xs">
                         <div>
                             <p className="text-sm text-gray-400">SALDO DE HOJE</p>
                             <p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -181,7 +283,7 @@ export default function DashboardPage() {
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>
                     </div>
-                </div>
+                </header>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div className="xl:col-span-2 space-y-6">
@@ -204,7 +306,8 @@ export default function DashboardPage() {
     );
 }
 
-// --- SUB-COMPONENTES DO DASHBOARD ---
+
+// --- SUB-COMPONENTES DO DASHBOARD (Sem alterações, mantidos como no original) ---
 
 function ProximosVencimentosComCalendario({ dueDates, onShowTooltip, onHideTooltip }: { dueDates: any[], onShowTooltip: Function, onHideTooltip: Function }) {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -261,8 +364,8 @@ function ProximosVencimentosComCalendario({ dueDates, onShowTooltip, onHideToolt
 
                             return (
                                 <div key={dayNumber} className={`relative p-1 rounded-full flex items-center justify-center ${isToday ? 'bg-teal-500 text-white font-bold' : ''}`}
-                                    onMouseEnter={(e) => hasDueDate && onShowTooltip(e, tooltipContent)}
-                                    onMouseLeave={() => hasDueDate && onHideTooltip()}>
+                                     onMouseEnter={(e) => hasDueDate && onShowTooltip(e, tooltipContent)}
+                                     onMouseLeave={() => hasDueDate && onHideTooltip()}>
                                     {dayNumber}
                                     {hasDueDate && <div className="absolute bottom-0 w-1 h-1 bg-yellow-400 rounded-full"></div>}
                                 </div>
@@ -351,7 +454,7 @@ function MetasEmAndamento({ goals, onShowTooltip, onHideTooltip }: { goals: any[
                     inProgressGoals.slice(0, 6).map(goal => {
                         const progress = (goal.currentValue / goal.targetValue) * 100;
                         return (
-                            <div key={goal.id_meta} className="text-sm"> {/* Usando id_meta conforme seu DER */}
+                            <div key={goal.id_meta} className="text-sm">
                                 <div className="flex justify-between mb-1"><span className="font-semibold">{goal.name}</span><span className="text-gray-400">{formatCurrency(goal.targetValue)}</span></div>
                                 <div className="w-full bg-gray-700 rounded-full h-2 cursor-pointer" onMouseEnter={(e) => onShowTooltip(e, `Arrecadado: ${formatCurrency(goal.currentValue)}`)} onMouseLeave={() => onHideTooltip()}>
                                     <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.min(progress, 100)}%` }}></div>
@@ -381,7 +484,7 @@ function Extrato({ transactions }: { transactions: any[] }) {
             <h3 className="font-bold mb-4">Extrato</h3>
             <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => (
-                    <div key={t.id_receita || t.id_despesa} className="flex items-center justify-between p-2 bg-white/5 rounded-lg"> {/* Usando id_receita ou id_despesa para a key */}
+                    <div key={t.id_receita || t.id_despesa} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                         <div className="flex items-center gap-3">
                             {t.type === 'receita' ? <IconArrowUp /> : <IconArrowDown />}
                             <div><p className="font-semibold">{t.name}</p><p className="text-xs text-gray-400">{format(parseISO(t.date), "dd MMM, HH:mm", {locale: ptBR})}</p></div>

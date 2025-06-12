@@ -1,14 +1,17 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react'; // useRef não é mais necessário aqui
 import './login.css';
 import { supabase } from '../../lib/supabaseClient';
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const leftTextGroupRef = useRef<HTMLDivElement>(null);
-  const rightTextGroupRef = useRef<HTMLDivElement>(null);
+  // --- MUDANÇA 1: Refs removidos ---
+  // const leftTextGroupRef = useRef<HTMLDivElement>(null);
+  // const rightTextGroupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const [isSignUpActive, setIsSignUpActive] = useState(false);
 
   // Estados para login/cadastro
   const [loginEmail, setLoginEmail] = useState('');
@@ -20,77 +23,34 @@ export default function Login() {
   const [registerMsg, setRegisterMsg] = useState('');
 
   const slides = [
-    {
-      image: '/img/Login/Mask group1.png',
-      title: 'Controle suas finanças',
-      description: 'Acompanhe seus gastos e receitas de forma simples e eficiente'
-    },
-    {
-      image: '/img/Login/Mask group2.png',
-      title: 'Organize seu orçamento',
-      description: 'Defina metas e acompanhe seu progresso'
-    },
-    {
-      image: '/img/Login/Mask group3.png',
-      title: 'Faça suas metas!',
-      description: 'Alcance seus objetivos financeiros com planejamento'
-    }
+    { image: '/img/Login/Mask group1.png', title: 'Controle suas finanças', description: 'Acompanhe seus gastos e receitas de forma simples e eficiente' },
+    { image: '/img/Login/Mask group2.png', title: 'Organize seu orçamento', description: 'Defina metas e acompanhe seu progresso' },
+    { image: '/img/Login/Mask group3.png', title: 'Faça suas metas!', description: 'Alcance seus objetivos financeiros com planejamento' }
   ];
-
-  useEffect(() => {
-    const signUpButton = document.getElementById('signUp');
-    const signInButton = document.getElementById('signIn');
-    const signUpMobile = document.getElementById('signUp_mobile');
-    const signInMobile = document.getElementById('signIn_mobile');
-    const container = document.getElementById('container');
-
-    const handleSignUp = () => {
-      if (container) {
-        container.classList.add('right-panel-active');
-      }
-    };
-
-    const handleSignIn = () => {
-      if (container) {
-        container.classList.remove('right-panel-active');
-      }
-    };
-
-    signUpButton?.addEventListener('click', handleSignUp);
-    signInButton?.addEventListener('click', handleSignIn);
-    signUpMobile?.addEventListener('click', handleSignUp);
-    signInMobile?.addEventListener('click', handleSignIn);
-
-    return () => {
-      signUpButton?.removeEventListener('click', handleSignUp);
-      signInButton?.removeEventListener('click', handleSignIn);
-      signUpMobile?.removeEventListener('click', handleSignUp);
-      signInMobile?.removeEventListener('click', handleSignIn);
-    };
-  }, []);
-
+  
+  // useEffect para o slider automático (continua igual)
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 4000);
-
     return () => clearInterval(interval);
   }, [slides.length]);
 
+  // --- MUDANÇA 2: useEffect de animação REMOVIDO ---
+  // Este bloco não é mais necessário, pois o estilo será aplicado diretamente no JSX.
+  /*
   useEffect(() => {
-    if (leftTextGroupRef.current) {
-      leftTextGroupRef.current.style.transform = `translateY(-${currentSlide * 50}px)`;
-    }
-    if (rightTextGroupRef.current) {
-      rightTextGroupRef.current.style.transform = `translateY(-${currentSlide * 50}px)`;
-    }
+    // ...código removido...
   }, [currentSlide]);
+  */
 
   const handleBulletClick = (index: number) => {
     setCurrentSlide(index);
   };
 
-  const renderCarousel = (textGroupRef: React.RefObject<HTMLDivElement>) => (
+  // --- MUDANÇA 3: A função renderCarousel é simplificada ---
+  // Ela não precisa mais receber uma 'ref'
+  const renderCarousel = () => (
     <div className="carousel">
       <div className="images-wrapper">
         {slides.map((slide, index) => (
@@ -104,7 +64,12 @@ export default function Login() {
       </div>
       <div className="text-slider">
         <div className="text-wrap">
-          <div className="text-group" ref={textGroupRef}>
+          {/* --- MUDANÇA 4: A MÁGICA ACONTECE AQUI! --- */}
+          {/* O transform é aplicado dinamicamente com base no estado 'currentSlide' */}
+          <div 
+            className="text-group" 
+            style={{ transform: `translateY(-${currentSlide * 50}px)` }}
+          >
             {slides.map((slide, index) => (
               <h2 key={index}>{slide.title}</h2>
             ))}
@@ -133,7 +98,7 @@ export default function Login() {
     const { error } = await supabase.auth.signUp({
       email: registerEmail,
       password: registerSenha,
-      options: { data: { nome: registerNome } } // Já envia o nome corretamente
+      options: { data: { nome: registerNome } }
     });
     if (error) {
       setRegisterMsg(error.message);
@@ -157,12 +122,13 @@ export default function Login() {
       setLoginMsg('Email ou senha inválidos!');
     } else {
       setLoginMsg('Login realizado com sucesso!');
-      router.push('/dashboard'); // Redireciona para o dashboard
+      router.push('/dashboard');
     }
   };
 
   return (
-    <div className="container" id="container">
+    // A classe do container é controlada pelo estado 'isSignUpActive'
+    <div className={`container ${isSignUpActive ? 'right-panel-active' : ''}`}>
       <div className="row">
         {/* Sign Up */}
         <div className="form-container sign-up-container">
@@ -170,14 +136,15 @@ export default function Login() {
             <img src="/img/BudgetBuddysgv.svg" alt="Logo" width="100" height="100" />
             <h1>Bem Vindo</h1>
             <h2>Criar Cadastro</h2>
-            <span>Ou use seu Email para o registro</span>
+            <span></span>
             <input type="text" placeholder="Nome" value={registerNome} onChange={e => setRegisterNome(e.target.value)} />
             <input type="email" placeholder="Email" value={registerEmail} onChange={e => setRegisterEmail(e.target.value)} />
             <input type="password" placeholder="Senha" value={registerSenha} onChange={e => setRegisterSenha(e.target.value)} />
             <button type="submit">Cadastrar</button>
             {registerMsg && <p style={{ color: registerMsg.startsWith('Cadastro') ? 'green' : 'red', marginTop: 8 }}>{registerMsg}</p>}
-            <p id="mobile_para">To keep connected with us, please login</p>
-            <button className="ghost_mobile" id="signIn_mobile" type="button">Fazer Login</button>
+            <p id="mobile_para"></p>
+            {/* O onClick agora altera o estado */}
+            <button className="ghost_mobile" type="button" onClick={() => setIsSignUpActive(false)}>Fazer Login</button>
           </form>
         </div>
 
@@ -187,14 +154,15 @@ export default function Login() {
             <img src="/img/BudgetBuddysgv.svg" alt="Logo" width="100" height="100" />
             <h1>Bem-Vindo Novamente!</h1>
             <h2>Fazer Login</h2>
-            <span>Ou use sua conta</span>
+            <span></span>
             <input type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
             <input type="password" placeholder="Senha" value={loginSenha} onChange={e => setLoginSenha(e.target.value)} />
             <a href="#">Esqueceu sua senha?</a>
             <button type="submit">Fazer Login</button>
             {loginMsg && <p style={{ color: loginMsg.startsWith('Login') ? 'green' : 'red', marginTop: 8 }}>{loginMsg}</p>}
             <p id="mobile_para">Não possui conta? Crie uma aqui !!</p>
-            <button className="ghost_mobile" id="signUp_mobile" type="button">Criar Cadastro</button>
+            {/* O onClick agora altera o estado */}
+            <button className="ghost_mobile" type="button" onClick={() => setIsSignUpActive(true)}>Criar Cadastro</button>
           </form>
         </div>
 
@@ -203,14 +171,14 @@ export default function Login() {
           <div className="overlay">
             {/* Overlay left */}
             <div className="overlay-panel overlay-left">
-              {renderCarousel(leftTextGroupRef)}
-              <button className="ghost" id="signIn">Fazer Login</button>
+              {renderCarousel()}
+              <button className="ghost" type="button" onClick={() => setIsSignUpActive(false)}>Fazer Login</button>
             </div>
 
             {/* Overlay right */}
             <div className="overlay-panel overlay-right">
-              {renderCarousel(rightTextGroupRef)}
-              <button className="ghost" id="signUp">Cadastre-se</button>
+              {renderCarousel()}
+              <button className="ghost" type="button" onClick={() => setIsSignUpActive(true)}>Cadastre-se</button>
             </div>
           </div>
         </div>

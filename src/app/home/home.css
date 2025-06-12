@@ -125,7 +125,7 @@ nav.navbar.navbar-custom {
   color: var(--color-light);
 }
 
-/* ========== SEÇÃO SERVIÇOS ========== */
+/* ========== SEÇÃO SERVIÇOS (VERSÃO CORRIGIDA E MELHORADA) ========== */
 .servicos {
   background-color: var(--color-light);
   text-align: center;
@@ -144,7 +144,6 @@ nav.navbar.navbar-custom {
   max-width: 900px;
   margin: 0 auto;
   margin-bottom: 30px;
-  
 }
 
 .image-container {
@@ -159,7 +158,8 @@ nav.navbar.navbar-custom {
   height: 400px;
   border-radius: 1rem;
   overflow: hidden;
-  transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+  transition: width 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+  cursor: pointer; /* Indica que o elemento é clicável */
 }
 
 .image-container .image img {
@@ -170,27 +170,80 @@ nav.navbar.navbar-custom {
 }
 
 .image-container .image span {
-  display: inline-block;
-  position: absolute;
-  left: 1rem;
-  bottom: 1rem;
-  background-color: var(--color-accent);
-  padding: 0.7rem 1rem;
-  border-radius: 100vw;
+  position: absolute; /* Posição absoluta para ambos os estados */
   color: var(--color-light);
-  font-size: 1.2rem;
   font-family: var(--font-secondary);
-  transform: scale(0);
-  transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95) 0.3s;
+  font-size: 1.2rem;
+  background-color: var(--color-accent);
+  transition: all 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95); /* Transição para todas as propriedades */
+  white-space: nowrap; /* Impede que o texto quebre em duas linhas */
 }
 
 .image-container .active {
-  width: 100%;
+  width: 100%; /* Expande a imagem ativa */
 }
 
-.image-container .active span {
-  transform: scale(1);
+/* Estilos para Desktop (tela maior que 768px) */
+@media (min-width: 769px) {
+  /* Estilo para o texto das imagens NÃO ATIVAS (vertical) */
+  .image-container .image:not(.active) span {
+    writing-mode: vertical-lr; /* Coloca o texto na vertical */
+    padding: 1rem 0.5rem;
+    border-radius: 1rem;
+    left: 50%;
+    top: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+
+  /* Estilo para o texto da imagem ATIVA (horizontal) */
+  .image-container .image.active span {
+    writing-mode: horizontal-tb; /* Volta o texto para horizontal */
+    transform: scale(1);
+    left: 1rem;
+    bottom: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: 100vw;
+  }
 }
+
+/* Estilos para Mobile (tela até 768px) */
+@media (max-width: 768px) {
+    .servicos {
+      margin-top: 390px;
+    }
+
+    .image-container {
+      flex-direction: column;
+      width: 100%;
+      height: 400px;
+    }
+
+    .image-container .image {
+      width: 100%;
+      height: 60px;
+      transition: height 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+    }
+    
+    .image-container .active {
+      height: 400px;
+      width: 100%;
+    }
+
+    /* Comportamento original de aparecer/desaparecer para mobile */
+    .image-container .image span {
+        display: inline-block;
+        left: 1rem;
+        bottom: 1rem;
+        padding: 0.7rem 1rem;
+        border-radius: 100vw;
+        transform: scale(0);
+    }
+    .image-container .image.active span {
+        transform: scale(1);
+    }
+}
+
 
 /* ========== SEÇÃO DEPOIMENTOS ========== */
 .depoimentos {
@@ -379,26 +432,9 @@ footer {
   font-display: swap;
 }
 
-/* ========== MEDIA QUERIES ========== */
+/* ========== MEDIA QUERIES GERAIS ========== */
 @media (max-width: 768px) {
-  .servicos {
-    margin-top: 390px;
-  }
-  
-  .image-container {
-    flex-direction: column;
-    width: 100%;
-    height: 400px;
-  }
-
-  .image-container .image {
-    width: 100%;
-    height: 60px;
-  }
-
-  .image-container .active {
-    height: 400px;
-  }
+  /* As regras dos serviços foram movidas para a seção deles para melhor organização */
 
   .curioso {
     height: 600px;
@@ -460,4 +496,4 @@ footer {
     width: 15px;
     height: 15px;
   }
-} 
+}
