@@ -2,7 +2,7 @@
 
 
 ## 1. Introdução
-O projeto BudgetBuddy é uma aplicação web inovadora voltada para a gestão pessoal de finanças. A plataforma utiliza LocalStorage para salvamento de dados, permitindo que os usuários acompanhem seu saldo, vencimentos futuros, gastos por categoria, e visualizem gráficos detalhados sobre sua renda mensal. Além disso, a ferramenta oferece dicas financeiras, criação e gerenciamento de metas, e um extrato financeiro para melhor controle das finanças.
+O projeto BudgetBuddy é uma aplicação web inovadora voltada para a gestão pessoal de finanças. A plataforma utiliza o Supabase para salvamento de dados, permitindo que os usuários acompanhem seu saldo, vencimentos futuros, gastos por categoria, e visualizem gráficos detalhados sobre sua renda mensal. Além disso, a ferramenta oferece dicas financeiras, criação e gerenciamento de metas, e um extrato financeiro para melhor controle das finanças.
 
 Atualmente, o endividamento da população tem sido uma preocupação crescente, muitas vezes causado pela falta de organização financeira. O BudgetBuddy surge como uma solução prática e acessível para esse problema, proporcionando um organizador financeiro simples e intuitivo, sem a complexidade das tradicionais planilhas.
 
